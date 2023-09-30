@@ -1,0 +1,162 @@
+/*Normal items
+data - base_item_id
+62 - SW
+63 - KI
+60 - SZYB
+61 - WYTRZ
+59 - SIŁA
+Rare
+819 - SW
+810 - WYTRZ
+828 - KI
+801 - SZYB
+791 - SIŁA
+*/
+
+GAME.Order = function(obj) {
+  for (const key in GAME) {
+    if (key.endsWith("Order") && typeof GAME[key] === "function") {
+      return GAME[key](obj);
+    }
+  }
+};
+
+const upgradeItems = `
+<div style="position: fixed; top: 50px; right: 20px; background-color: #f5f5f5; border: 1px solid #ccc; padding: 10px; z-index: 9999;width:200px;height:200px;">
+    <h3>Wybierz opcję:</h3>
+    <div class="container" style="display: flex;">
+    <select id="optionSelector">
+        <option value="Normal">Normal</option>
+        <option value="Rare">Rare</option>
+    </select>
+    <div id="normalItems" style="display: none;">
+        <select>
+            <option value="59">SIŁA</option>
+            <option value="60">SZYB</option>
+            <option value="61">WYTRZ</option>
+            <option value="62">SW</option>
+            <option value="63">KI</option>   
+        </select>
+    </div>
+    <div id="rareItems" style="display: none;">
+        <select>
+            <option value="791">SIŁA</option>
+            <option value="801">SZYB</option>
+            <option value="810">WYTRZ</option>
+            <option value="819">SW</option>
+            <option value="828">KI</option>   
+        </select>
+    </div>
+    </div>
+    <div class="container" style = "display: flex; padding-top:6px;">
+    <p>+</p>
+    <input type="number" id="symbol_upg" min="1" max="50" style="height:22px"></input>
+    <p>Ile</p>
+    <input type="number" id="amount" min="1" max="50" style="height:22px"></input>
+    </div>
+    <button id="executeButton">Wykonaj</button>
+</div>
+`;
+
+document.body.insertAdjacentHTML('beforeend', upgradeItems);
+
+// Pobierz elementy select i divy z opcjami
+let optionSelector = document.getElementById("optionSelector");
+let normalItems = document.getElementById("normalItems");
+let rareItems = document.getElementById("rareItems");
+let selectedType;
+
+// Dodaj obsługę zdarzenia zmiany opcji
+optionSelector.addEventListener("change", () => {
+    if (optionSelector.value === "Normal") {
+        // Jeśli wybrano "Normal", pokaż normalne przedmioty i ukryj rzadkie
+        normalItems.style.display = "block";
+        rareItems.style.display = "none";
+    } else if (optionSelector.value === "Rare") {
+        // Jeśli wybrano "Rare", pokaż rzadkie przedmioty i ukryj normalne
+        normalItems.style.display = "none";
+        rareItems.style.display = "block";
+    }
+});
+
+// Dodaj obsługę kliknięcia przycisku "Wykonaj"
+const executeButton = document.getElementById("executeButton");
+executeButton.addEventListener("click", () => {
+    const selectedOption = optionSelector.value;
+    if (selectedOption === 'Normal') {
+        selectedType = parseInt(document.getElementById("normalItems").querySelector('select').value);
+    }
+    else selectedType = parseInt(document.getElementById("rareItems").querySelector('select').value);
+    console.log(`Wybrana opcja: ${selectedOption}, Typ: ${selectedType}`);
+    upgr.managerLoop();
+});
+
+
+
+//GAME.ekw_page = parseInt(th.data('page'));
+//GAME.ekw_page2 = parseInt(th.data('page2'));
+
+//GAME.dragged_item={id:iid,sel:el,usable:us,slot:slot,stack:stack,img:el.data('img'),bid:bid,type:type,iclass:iclass,upgrade:upgrade};
+
+class upgradeSymbol {
+    constructor() {
+        this.symbol_upg = 0;
+        this.max_symbol_upg = 0;
+        this.amount = 0;
+        this.eq_page = 0;
+    }
+
+    loadEq() {
+        GAME.Order({ a: 12, page: 7, page2: GAME.ekw_page2 }); // Karta z symbolami
+    }
+
+    getInfo() {
+        this.max_symbol_upg = parseInt(document.getElementById("symbol_upg").value);
+        this.amount = parseInt(document.getElementById("amount").value);
+        this.symbolID = parseInt($(`#ekw_page_items div[data-base_item_id='${selectedType}'][data-upgrade='${this.symbol_upg}']`).attr("data-item_id"));
+        this.symbol_stack = parseInt($(`#ekw_page_items div[data-base_item_id='${selectedType}'][data-upgrade='${this.symbol_upg}']`).attr("data-stack"));
+        console.log('Item_ID', this.symbolID, 'Ilość', this.symbol_stack);
+    }
+
+    upgradeSymbol() {
+        if (this.amount <= this.symbol_stack) {
+            GAME.Order({ a: 12, type: 10, iid: this.symbolID, page: 7, page2: this.eq_page, am: this.amount });
+            this.symbol_upg++;
+        } else {
+            GAME.Order({ a: 12, type: 10, iid: this.symbolID, page: 7, page2: this.eq_page, am: this.symbol_stack }); this.symbol_upg++;
+        }
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    changePage() {
+        GAME.Order({ a: 12, page: 7, page2: 1 });
+        this.eq_page++;
+    }
+
+    async managerLoop() {
+        //this.loadEq();
+        await this.delay(1200);
+        this.getInfo();
+        await this.delay(1200);
+        if (isNaN(this.symbolID) && isNaN(this.symbol_stack)) {
+            this.changePage();
+            await this.delay(1000);
+            this.managerLoop();
+        }
+        await this.delay(1500);
+        console.log(this.symbol_stack, this.symbol_upg, this.max_symbol_upg);
+        if (this.symbol_stack >= 1 && (this.symbol_upg < this.max_symbol_upg)) {
+            this.upgradeSymbol();
+            this.managerLoop();
+        }
+        else console.log('Koniec! Udało się ulepszyć', this.symbol_stack, 'Symboli');
+        return;
+    }
+
+}
+const upgr = new upgradeSymbol();
+upgr.loadEq();
+
